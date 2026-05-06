@@ -32,6 +32,42 @@ class SimpleNet(torch.nn.Module):
         x = self.relu(self.fc2(x))
         x = self.fc3(x)
         return x
+    
+
+# ==========================================
+# 畳み込み層 + 全結合ネットワーク構築
+# 畳み込み層1 (1枚 → 32部品) → 圧縮1 (28x28 → 14x14 ※面積1/4) → 畳み込み層2 (32部品 → 64特徴) → 圧縮2 (14x14 → 7x7 ※面積1/4) → 隠れ層1 (3136 → 128) → 隠れ層2 (128 → 64) → 出力層 (64 → 10)
+# ==========================================
+class ConvNet(torch.nn.Module):
+    def __init__(self):
+        super(ConvNet, self).__init__()
+        # 1. 畳み込み層: 入力1ch(白黒), 出力32ch, 3x3のフィルタ
+        self.conv1 = torch.nn.Conv2d(1, 32, kernel_size=3, padding=1)
+        # 2. 畳み込み層: 入力32ch, 出力64ch, 3x3のフィルタ
+        self.conv2 = torch.nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        # 3. プーリング層: 2x2の範囲で最大値を取り出し、サイズを半分に圧縮
+        self.pool = torch.nn.MaxPool2d(2, 2)
+        self.relu = torch.nn.ReLU()
+        
+        # 最終的な全結合層への入力サイズ計算: 
+        # 28x28 -> (conv1) -> 28x28 -> (pool) -> 14x14 
+        # -> (conv2) -> 14x14 -> (pool) -> 7x7
+        # 64枚の7x7画像 = 64 * 7 * 7 = 3136
+        self.fc1 = torch.nn.Linear(64 * 7 * 7, 128)
+        self.fc2 = torch.nn.Linear(128, 10)
+
+    def forward(self, x):
+        # [Batch, 1, 28, 28] -> Conv1 -> ReLU -> Pool -> [Batch, 32, 14, 14]
+        x = self.pool(self.relu(self.conv1(x)))
+        # [Batch, 32, 14, 14] -> Conv2 -> ReLU -> Pool -> [Batch, 64, 7, 7]
+        x = self.pool(self.relu(self.conv2(x)))
+        
+        # 全結合層に渡すために1次元にフラット化
+        x = x.view(-1, 64 * 7 * 7)
+        
+        x = self.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
 
 # ==========================================
 # メインの処理関数
@@ -44,7 +80,8 @@ BATCH_SIZE=64
 
 
 def main():
-    model = SimpleNet().to(device)
+    # model = SimpleNet().to(device)
+    model = ConvNet().to(device)
 
     transform = transforms.Compose([
         transforms.ToTensor(), # 0-255(Int) -> 0.0-1.0(Float)への変換

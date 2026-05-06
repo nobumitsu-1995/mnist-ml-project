@@ -1,11 +1,12 @@
 import torch
 from torchvision import datasets, transforms
-from main import SimpleNet, device, MNIST_MEAN, MNIST_STD, BATCH_SIZE
+from main import SimpleNet, ConvNet, device, MNIST_MEAN, MNIST_STD, BATCH_SIZE
 
 
 def evaluate(model_path):
     # モデルの読み込み
-    model = SimpleNet().to(device)
+    # model = SimpleNet().to(device)
+    model = ConvNet().to(device)
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
 
